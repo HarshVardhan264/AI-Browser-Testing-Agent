@@ -1,0 +1,192 @@
+{
+  "website": "https://phptravels.com/demo",
+  "test_case": "fill the form withFirst name: {{first_name}}\nLast name: {{last_name}}\nBusiness name:\nBusiness name:   \nCountry: {{country}}\nWhatsApp number: {{whatsapp_number}}",
+  "test_data_keys_from_test_case": [
+    "country",
+    "first_name",
+    "last_name",
+    "whatsapp_number"
+  ],
+  "test_data_keys_from_environment": [],
+  "status": "PASS",
+  "reason": "All requested form fields were successfully filled with the correct test data as verified by the form value checks.",
+  "steps": [
+    {
+      "step": 1,
+      "action": {
+        "action": "fill",
+        "target": "element_13",
+        "value": "[REDACTED]",
+        "reason": "Fill the First name field with the supplied test data."
+      },
+      "result": "Filled field"
+    },
+    {
+      "step": 2,
+      "action": {
+        "action": "fill",
+        "target": "element_14",
+        "value": "[REDACTED]",
+        "reason": "Fill the Last name field with the supplied test data."
+      },
+      "result": "Filled field"
+    },
+    {
+      "step": 3,
+      "action": {
+        "action": "fill",
+        "target": "element_15",
+        "value": "[REDACTED]",
+        "reason": "Fill the Business name field with an empty value as per test case."
+      },
+      "result": "Filled field"
+    },
+    {
+      "step": 4,
+      "action": {
+        "action": "fill",
+        "target": "element_17",
+        "value": "[REDACTED]",
+        "reason": "Fill the WhatsApp number field with the supplied test data."
+      },
+      "result": "Filled field"
+    },
+    {
+      "step": 5,
+      "action": {
+        "action": "fill",
+        "target": "element_16",
+        "value": "[REDACTED]",
+        "reason": "Fill the Country field with the supplied test data."
+      },
+      "result": "Filled field"
+    },
+    {
+      "step": 6,
+      "action": {
+        "action": "fill",
+        "target": "element_20",
+        "value": "[REDACTED]",
+        "reason": "Fill the WhatsApp number field with the supplied test data."
+      },
+      "result": "Filled field"
+    },
+    {
+      "step": 7,
+      "action": {
+        "action": "click",
+        "target": "element_19",
+        "reason": "Select India from the country dropdown/list."
+      },
+      "result": "Clicked element"
+    },
+    {
+      "step": 8,
+      "action": {
+        "action": "fill",
+        "target": "element_21",
+        "value": "[REDACTED]",
+        "reason": "Fill work email to complete the required form fields."
+      },
+      "result": "Filled field"
+    },
+    {
+      "step": 9,
+      "action": {
+        "action": "fill",
+        "target": "element_19",
+        "value": "[REDACTED]",
+        "reason": "Fill the security check captcha answer (8 + 4 = 12)"
+      },
+      "result": "Filled field"
+    }
+  ],
+  "auto_actions": [
+    {
+      "field": "First name",
+      "result": "already filled (prefilled or earlier step)"
+    },
+    {
+      "field": "Last name",
+      "result": "already filled (prefilled or earlier step)"
+    },
+    {
+      "field": "Business name",
+      "result": "already filled (prefilled or earlier step)"
+    },
+    {
+      "field": "WhatsApp number +91 Digits only, without the country code or a leading 0.",
+      "result": "already filled (prefilled or earlier step)"
+    },
+    {
+      "field": "Work email",
+      "result": "already filled (prefilled or earlier step)"
+    },
+    {
+      "field": "Security check",
+      "result": "already filled (prefilled or earlier step)"
+    }
+  ],
+  "assertions": [],
+  "data_verification": [
+    {
+      "field": "first_name",
+      "expected": "Tripti",
+      "actual": "Tripti",
+      "status": "PASS"
+    },
+    {
+      "field": "last_name",
+      "expected": "Kumari",
+      "actual": "Kumari",
+      "status": "PASS"
+    },
+    {
+      "field": "country",
+      "expected": "India",
+      "actual": "India",
+      "status": "PASS"
+    },
+    {
+      "field": "whatsapp_number",
+      "expected": "9876543210",
+      "actual": "9876543210",
+      "status": "PASS"
+    },
+    {
+      "field": "business_name",
+      "expected": "EZlabs",
+      "actual": "EZlabs",
+      "status": "PASS"
+    }
+  ],
+  "arithmetic_verification": [
+    {
+      "expression": "8 + 4 =",
+      "expected": "12",
+      "actual": "12",
+      "status": "PASS"
+    }
+  ],
+  "submission": {
+    "allowed_by_test_case": false,
+    "clicked": false
+  },
+  "submission_verification": {
+    "required": false,
+    "clicked": false,
+    "verified": null,
+    "evidence": "First name\nLast name\nBusiness name\nCountry\nWhatsApp number",
+    "message": "Submission was not requested; the test is evaluated against its non-submission goal."
+  },
+  "verdict": {
+    "verdict": "PASS",
+    "evidence": "First name\nLast name\nBusiness name\nCountry\nWhatsApp number",
+    "reason": "All requested form fields were successfully filled with the correct test data as verified by the form value checks."
+  },
+  "error": null,
+  "initial_url": "https://phptravels.com/demo",
+  "final_url": "https://phptravels.com/demo",
+  "page_title": "PHPTRAVELS Demo: Try the Live Travel Booking Software",
+  "duration_seconds": 79.5
+}
