@@ -1,10 +1,3 @@
-"""
-Browser page observer for the AI browser testing agent.
-
-Returns a structured snapshot of visible interactive elements.
-References are temporary and must be refreshed after page changes.
-"""
-
 from playwright.async_api import Page
 
 

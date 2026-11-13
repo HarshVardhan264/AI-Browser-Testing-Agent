@@ -1,13 +1,3 @@
-"""
-AI browser testing agent.
-
-Usage:
-    python agent.py https://example.com -t "Log in as a customer and verify the dashboard is shown"
-    python agent.py https://example.com -f testcase.txt --headless --non-interactive
-
-Exit code: 0 = PASS, 1 = FAIL or INCONCLUSIVE.
-"""
-
 import argparse
 import asyncio
 import getpass
@@ -52,10 +42,6 @@ NON_INTERACTIVE = False
 class MissingDataError(Exception):
     """A value the test needs was neither supplied nor available."""
 
-
-# ---------------------------------------------------------------------
-# TEXT HELPERS
-# ---------------------------------------------------------------------
 
 def normalize(value):
     return re.sub(r"[^a-z0-9]+", "_", str(value or "").lower()).strip("_")

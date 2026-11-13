@@ -1,22 +1,3 @@
-"""
-Playwright browser actions for the AI browser testing agent.
-
-The public function names and signatures are kept compatible with agent.py:
-    get_element
-    fill_element
-    click_element
-    select_element
-    check_element
-    uncheck_element
-    scroll_element
-    hover_element
-    wait_page
-    navigate_page
-
-Element references are temporary. If a reference is missing or ambiguous,
-the caller should refresh the page observation and request a new action.
-"""
-
 import re
 from playwright.async_api import (
     Page,
@@ -353,64 +334,6 @@ async def select_element(page: Page, ref: str, value: str):
             f"Could not select '{value}' in custom dropdown "
             f"{ref}: {error}"
         ) from error
-
-
-async def check_element(page: Page, ref: str):
-    """Check a native checkbox or radio button."""
-    locator = await get_element(page, ref)
-    element_type = (
-        await locator.get_attribute("type") or ""
-    ).lower()
-    role = (
-        await locator.get_attribute("role") or ""
-    ).lower()
-
-    if not (
-        element_type in {"checkbox", "radio"}
-        or role in {"checkbox", "radio"}
-    ):
-        raise ValueError(
-            f"Element {ref} is not a checkbox or radio button."
-        )
-
-    try:
-        if not await locator.is_checked():
-            await locator.check(timeout=ACTION_TIMEOUT)
-    except Exception as error:
-        raise RuntimeError(
-            f"Could not check element {ref}: {error}"
-        ) from error
-
-    print(f"Checked element: {ref}")
-
-
-async def uncheck_element(page: Page, ref: str):
-    """Uncheck a checkbox. Radio buttons cannot be unchecked independently."""
-    locator = await get_element(page, ref)
-    element_type = (
-        await locator.get_attribute("type") or ""
-    ).lower()
-    role = (
-        await locator.get_attribute("role") or ""
-    ).lower()
-
-    if element_type == "radio" or role == "radio":
-        raise ValueError(
-            "A radio button cannot be independently unchecked."
-        )
-
-    if not (element_type == "checkbox" or role == "checkbox"):
-        raise ValueError(f"Element {ref} is not a checkbox.")
-
-    try:
-        if await locator.is_checked():
-            await locator.uncheck(timeout=ACTION_TIMEOUT)
-    except Exception as error:
-        raise RuntimeError(
-            f"Could not uncheck element {ref}: {error}"
-        ) from error
-
-    print(f"Unchecked element: {ref}")
 
 
 async def scroll_element(page: Page, ref: str):

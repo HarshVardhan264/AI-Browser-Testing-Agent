@@ -1,18 +1,3 @@
-
-"""
-Gemini planner for the AI browser testing agent.
-
-Responsibilities:
-- Compact page observations before sending them to the model.
-- Choose exactly one safe next browser action.
-- Extract concrete test data from a plain-English test case.
-- Build a small set of grounded, objective verification checks.
-- Judge the final outcome of the run and return evidence from the page.
-
-This module never executes browser actions; agent.py does that.
-Nothing here is tied to one website.
-"""
-
 import json
 import os
 import re
@@ -64,9 +49,6 @@ def _client():
     return _CLIENT
 
 
-# ---------------------------------------------------------------------
-# OBSERVATION COMPACTION
-# ---------------------------------------------------------------------
 
 def compact_json(data: Any) -> str:
     return json.dumps(
@@ -188,9 +170,6 @@ def compact_observation(observation: dict) -> dict:
     return result
 
 
-# ---------------------------------------------------------------------
-# GEMINI CALL
-# ---------------------------------------------------------------------
 
 def get_retry_delay(
     error: Exception,
@@ -320,10 +299,6 @@ def parse_json_response(response_text: str) -> dict:
 
     return result
 
-
-# ---------------------------------------------------------------------
-# NEXT ACTION
-# ---------------------------------------------------------------------
 
 def validate_action(
     action: dict,
@@ -483,11 +458,6 @@ ACTION FORMATS (return only one JSON object, no markdown):
         action,
         observation
     )
-
-
-# ---------------------------------------------------------------------
-# TEST DATA EXTRACTION
-# ---------------------------------------------------------------------
 
 def extract_test_data(
     test_case: str
@@ -695,10 +665,6 @@ Return JSON only:
         "checks": kept
     }
 
-
-# ---------------------------------------------------------------------
-# FINAL VERDICT
-# ---------------------------------------------------------------------
 
 def judge_outcome(
     test_case: str,
