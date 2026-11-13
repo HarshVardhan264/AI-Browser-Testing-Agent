@@ -1,6 +1,5 @@
 import argparse
 import asyncio
-import getpass
 import json
 import os
 import re
@@ -36,9 +35,6 @@ MAX_CONSECUTIVE_ERRORS = 3
 MAX_REPEATS = 3
 MAX_SUBMIT_BLOCKS = 2
 
-NON_INTERACTIVE = False
-
-
 class MissingDataError(Exception):
     """A value the test needs was neither supplied nor available."""
 
@@ -58,21 +54,6 @@ SECRET_KEY = re.compile(
 
 def is_secret_key(key):
     return bool(SECRET_KEY.search(normalize(key)))
-
-
-def read_multiline_test_case():
-    print("\nEnter your test case.")
-    print("Paste multiple lines if needed. Type END on its own line when finished.\n")
-    lines = []
-    while True:
-        try:
-            line = input()
-        except EOFError:
-            break
-        if line.strip().upper() == "END":
-            break
-        lines.append(line)
-    return "\n".join(lines).strip()
 
 
 NON_DATA_KEYS = {
@@ -243,201 +224,48 @@ def match_test_data(element, data):
     return match[1] if match else None
 
 
-# ---------------------------------------------------------------------
-# PROMPTING THE PERSON
-# ---------------------------------------------------------------------
+async def missing_required_fields(page, observation):
+    """Return visible required controls that are still empty before submit."""
+    missing, radio_groups = [], set()
+    ignored = {"file", "button", "submit", "image", "reset", "hidden"}
 
-def ask_for_value(label):
-    if NON_INTERACTIVE:
-        raise MissingDataError(f"Missing test data for: {label}")
-
-    print(f"\nValue needed for: {label}")
-    print("1. Enter in terminal")
-    print("2. Enter directly in the browser")
-    while True:
-        choice = input("Choose 1 or 2: ").strip()
-        if choice == "1":
-            value = (
-                getpass.getpass("Enter value: ")
-                if "password" in label.lower()
-                else input(f"Enter {label}: ").strip()
-            )
-            if value:
-                return "terminal", value
-        elif choice == "2":
-            return "browser", None
-        print("Please choose 1 or 2 and provide a value.")
-
-
-async def current_value(locator, element):
-    kind = str(element.get("type", "")).lower()
-    if kind in {"checkbox", "radio"}:
-        return await locator.is_checked()
-    return await locator.input_value()
-
-
-async def fill_value(page, element, value):
-    target = element["ref"]
-    kind = str(element.get("type", "")).lower()
-
-    if kind in {"checkbox", "radio"}:
-        locator = page.locator(f'[data-agent-ref="{target}"]')
-        want = str(value).strip().lower() in {"true", "yes", "1", "checked", "on"}
-        if want and not await locator.is_checked():
-            await locator.check(timeout=ACTION_TIMEOUT)
-        elif not want and kind == "checkbox" and await locator.is_checked():
-            await locator.uncheck(timeout=ACTION_TIMEOUT)
-    elif element.get("tag") == "select":
-        await select_element(page, target, str(value))
-    else:
-        await fill_element(page, target, str(value))
-
-
-async def ask_for_browser_value(page, element, data):
-    if NON_INTERACTIVE:
-        raise MissingDataError(
-            f"Missing test data for: {element_label(element)}"
-        )
-
-    target = element["ref"]
-    label = element_label(element)
-    locator = page.locator(f'[data-agent-ref="{target}"]')
-
-    await locator.scroll_into_view_if_needed()
-    await locator.focus()
-    await locator.evaluate(
-        "el => { el.style.outline = '3px solid #16a34a'; el.focus(); }"
-    )
-    print(f"\nEnter the value in the highlighted browser field: {label}")
-    input("Press Enter here when finished...")
-
-    try:
-        value = await current_value(locator, element)
-    finally:
-        await locator.evaluate("el => el.style.outline = ''")
-
-    if value in ("", None, False):
-        raise ValueError(f"No value entered for {label}")
-    data[normalize(label)] = value
-
-
-# ---------------------------------------------------------------------
-# REQUIRED FIELDS
-# ---------------------------------------------------------------------
-
-async def check_required_fields(page, observation, data, auto_log):
-    """
-    Complete required controls the planner left empty. Never invents values:
-    uses supplied data, otherwise asks (or raises in non-interactive mode).
-    Every automatic action is appended to auto_log.
-    """
-    elements = observation.get("elements", [])
-    missing = []
-    handled_groups = set()
-
-    for element in elements:
-        if not element.get("required") or element.get("disabled"):
-            continue
-        tag = element.get("tag")
+    for element in observation.get("elements", []):
         kind = str(element.get("type", "")).lower()
-        if tag not in {"input", "textarea", "select"}:
+        if (
+            not element.get("required") or element.get("disabled")
+            or element.get("tag") not in {"input", "textarea", "select"}
+            or kind in ignored or not element.get("ref")
+        ):
             continue
-        if kind in {"file", "button", "submit", "image", "reset", "hidden"}:
-            continue
-        target = element.get("ref")
-        if not target:
-            continue
-        locator = page.locator(f'[data-agent-ref="{target}"]')
-        if not await locator.is_visible():
-            continue
-
-        label = element_label(element)
-
-        if kind == "radio":
-            group_key = element.get("name") or normalize(
-                element.get("groupLabel") or element.get("parentText", "")
-            )
-            if group_key in handled_groups:
+        locator = page.locator(f'[data-agent-ref="{element["ref"]}"]')
+        try:
+            if not await locator.is_visible():
                 continue
-            handled_groups.add(group_key)
-
-            group = [
-                item for item in elements
-                if str(item.get("type", "")).lower() == "radio"
-                and (
-                    (element.get("name") and item.get("name") == element.get("name"))
-                    or (
-                        not element.get("name")
-                        and normalize(item.get("parentText", ""))
-                        == normalize(element.get("parentText", ""))
-                    )
-                )
-            ]
-            already = False
-            for item in group:
-                radio = page.locator(f'[data-agent-ref="{item["ref"]}"]')
-                if await radio.is_checked():
-                    already = True
-                    break
-            if already:
-                auto_log.append({"field": label, "result": "already selected"})
-                continue
-
-            group_label = element.get("groupLabel") or element.get("parentText") or "Required choice"
-            supplied = match_test_data(element, data)
-            if supplied is None:
-                _, supplied = ask_for_value(group_label + " (choose one option)")
-            requested = normalize(supplied)
-            choices = []
-            for item in group:
-                text = normalize(
-                    " ".join(
-                        str(item.get(k, "") or "")
-                        for k in ("value", "label", "accessibleName", "text")
-                    )
-                )
-                if requested == text or requested in text.split("_"):
-                    choices.append(item)
-            if len(choices) != 1:
-                missing.append(group_label)
-                continue
-            await click_element(page, choices[0]["ref"])
-            auto_log.append({"field": group_label, "result": "option selected"})
-            continue
-
-        current = await current_value(locator, element)
-        if current not in ("", None, False):
-            auto_log.append({"field": label, "result": "already filled (prefilled or earlier step)"})
-            continue
-
-        supplied = match_test_data(element, data)
-
-        if kind == "checkbox":
-            if supplied is None:
-                _, supplied = ask_for_value(label + " (yes/no)")
-            if str(supplied).strip().lower() in {"yes", "true", "1", "checked", "on"}:
-                await locator.check(timeout=ACTION_TIMEOUT)
-                auto_log.append({"field": label, "result": "checked"})
+            group = element.get("name") or element.get("groupLabel") or element["ref"]
+            if kind == "radio":
+                if group in radio_groups:
+                    continue
+                radio_groups.add(group)
+                selected = False
+                for candidate in observation.get("elements", []):
+                    if (
+                        candidate.get("type") == "radio"
+                        and candidate.get("name") == element.get("name")
+                        and await page.locator(
+                            f'[data-agent-ref="{candidate["ref"]}"]'
+                        ).is_checked()
+                    ):
+                        selected = True
+                        break
+                empty = not selected
+            elif kind == "checkbox":
+                empty = not await locator.is_checked()
             else:
-                missing.append(label)  # a required box cannot stay unchecked
-            continue
-
-        if supplied is None:
-            mode, supplied = ask_for_value(label)
-            if mode == "browser":
-                await ask_for_browser_value(page, element, data)
-            else:
-                await fill_value(page, element, supplied)
-                data[normalize(label)] = supplied
-        else:
-            await fill_value(page, element, supplied)
-
-        current = await current_value(locator, element)
-        if current in ("", None, False):
-            missing.append(label)
-        else:
-            auto_log.append({"field": label, "result": "filled automatically"})
-
+                empty = not (await locator.input_value()).strip()
+            if empty:
+                missing.append(element_label(element))
+        except Exception:
+            missing.append(element_label(element))
     return missing
 
 
@@ -575,14 +403,11 @@ async def execute_action(page, action, data, observation):
         if supplied is not None:
             value = supplied
         if value in (None, ""):
-            label = element_label(element)
-            mode, value = ask_for_value(label)
-            if mode == "browser":
-                await ask_for_browser_value(page, element, data)
-                return "Entered manually in browser"
-            data[normalize(label)] = value
+            raise MissingDataError(
+                f"Missing test data for: {element_label(element)}"
+            )
         if kind == "fill":
-            await fill_value(page, element, value)
+            await fill_element(page, target, str(value))
             return "Filled field"
         await select_element(page, target, str(value))
         return "Selected option"
@@ -1010,7 +835,6 @@ async def run_test(website_url, test_case, headless, max_steps, report_path):
         "status": "INCONCLUSIVE",
         "reason": "",
         "steps": [],
-        "auto_actions": [],
         "assertions": [],
         "data_verification": [],
         "arithmetic_verification": [],
@@ -1027,9 +851,7 @@ async def run_test(website_url, test_case, headless, max_steps, report_path):
     }
 
     history = []
-    auto_log = []
     submit_clicked = False
-    filled_any = False
     consecutive_errors = 0
     submit_blocks = 0
     signatures = []
@@ -1083,23 +905,7 @@ async def run_test(website_url, test_case, headless, max_steps, report_path):
                 if kind in {"fill", "select"}:
                     safe_action["value"] = "[REDACTED]"
 
-                # ---- done ------------------------------------------------
                 if kind == "done":
-                    if filled_any and not submit_clicked:
-                        missing = await check_required_fields(
-                            page, observation, data, auto_log
-                        )
-                        if missing:
-                            print("Required fields still missing:", ", ".join(missing))
-                            history.append(
-                                {
-                                    "step": step,
-                                    "action": safe_action,
-                                    "error": "Required fields still incomplete: "
-                                    + ", ".join(missing),
-                                }
-                            )
-                            continue
                     completed = True
                     break
 
@@ -1122,9 +928,7 @@ async def run_test(website_url, test_case, headless, max_steps, report_path):
                             break
                         continue
 
-                    missing = await check_required_fields(
-                        page, observation, data, auto_log
-                    )
+                    missing = await missing_required_fields(page, observation)
                     if missing:
                         print("Submission paused. Missing:", ", ".join(missing))
                         history.append(
@@ -1178,8 +982,6 @@ async def run_test(website_url, test_case, headless, max_steps, report_path):
                     continue
 
                 consecutive_errors = 0
-                if kind in {"fill", "select"}:
-                    filled_any = True
                 if kind == "click" and is_submit(target_element):
                     submit_clicked = True
                     report["submission"]["clicked"] = True
@@ -1217,8 +1019,6 @@ async def run_test(website_url, test_case, headless, max_steps, report_path):
             await settle(page, 1000)
             page = latest_page(context, page)
             final_observation = await safe_observe(page)
-
-            report["auto_actions"] = auto_log
 
             if not report["data_verification"]:
                 report["data_verification"] = await verify_supplied_values(
@@ -1404,7 +1204,6 @@ async def run_test(website_url, test_case, headless, max_steps, report_path):
             except Exception:
                 pass
         finally:
-            report["auto_actions"] = auto_log
             report["duration_seconds"] = round(time.time() - started, 1)
             save_report(report, report_path)
             await browser.close()
@@ -1434,20 +1233,12 @@ def parse_args():
 
 
 def main():
-    global NON_INTERACTIVE
     args = parse_args()
-    NON_INTERACTIVE = args.non_interactive or not sys.stdin.isatty()
-
     url = (args.url or "").strip()
-    if not url and not NON_INTERACTIVE:
-        url = input("Enter website URL: ").strip()
-
     test_case = (args.test_case or "").strip()
     if args.test_case_file:
         with open(args.test_case_file, "r", encoding="utf-8") as file:
             test_case = file.read().strip()
-    if not test_case and not NON_INTERACTIVE:
-        test_case = read_multiline_test_case()
 
     if not url.startswith(("http://", "https://")) or not test_case:
         print("A valid URL (http:// or https://) and a test case are required.")
